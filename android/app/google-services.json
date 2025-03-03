@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "596817273399",
+    "project_id": "triviaa-14824",
+    "storage_bucket": "triviaa-14824.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:596817273399:android:3bdafacf7949a8412d15b2",
+        "android_client_info": {
+          "package_name": "com.summitcodeworks.triviaa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "596817273399-gfehqqcki6m3l10odjhqkueq5qhqidd8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.summitcodeworks.triviaa",
+            "certificate_hash": "e0ecb970681df245a806c30ab7c3f910ea8cbdfd"
+          }
+        },
+        {
+          "client_id": "596817273399-e8b0bb8s29mu616mtbkljkl5bpc0uphu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHVtjROJu65CG7oi4sxiTH_MtKvod-mk0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "596817273399-e8b0bb8s29mu616mtbkljkl5bpc0uphu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "596817273399-64eieer5cimcorrf7rkqpko2i03f92ba.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.summitcodeworks.triviaa"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
