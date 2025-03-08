@@ -14,11 +14,35 @@
       },
       "oauth_client": [
         {
+          "client_id": "596817273399-97880ipep1d9a275hm74fga01u4s3oqd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.summitcodeworks.triviaa",
+            "certificate_hash": "be196110b08be12c38bee90bae0d8dcb2d2faccd"
+          }
+        },
+        {
+          "client_id": "596817273399-cb3o6a6e7es06trmjq597moc421cdk8a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.summitcodeworks.triviaa",
+            "certificate_hash": "52203ad10aade1e23b991e9e40dd58fe13593108"
+          }
+        },
+        {
           "client_id": "596817273399-gfehqqcki6m3l10odjhqkueq5qhqidd8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.summitcodeworks.triviaa",
             "certificate_hash": "e0ecb970681df245a806c30ab7c3f910ea8cbdfd"
+          }
+        },
+        {
+          "client_id": "596817273399-mt0uqh99udhgvd2vl0jj8jrtpehcok7j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.summitcodeworks.triviaa",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },
         {

@@ -13,13 +13,12 @@ import {
     PermissionsAndroid,
     Linking,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import Icon from '@react-native-vector-icons/ionicons';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import type {ImagePickerResponse} from 'react-native-image-picker';
 import storage from '@react-native-firebase/storage';
 import ApiClient from '../utils/apiClient.ts';
 import {RootStackScreenProps} from '../types/navigation.ts';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DEFAULT_PROFILE_PICTURE, DEVICE_TOKEN, gPhoneNumber} from '../../globals.tsx';
 import {UserStorageService} from "../service/user-storage.service.ts";
 import {UserData} from "../models/UserData.ts";
@@ -31,8 +30,8 @@ const theme = {
     colors: {
         background: '#F5F5F5',
         primary: '#007AFF',
-        error: '#FF3B30',
         success: '#34C759',
+        error: '#FF3B30',
         text: '#000000',
         inputBackground: '#FFFFFF',
         warning: '#FF9500',
@@ -69,19 +68,25 @@ export default function UserDetailsScreen({
     >(null);
     const [isUnder13, setIsUnder13] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [hasUserTyped, setHasUserTyped] = useState(false);
 
     useEffect(() => {
         setFormData(prev => ({...prev, phoneNumber}));
         setFormData(prevState => ({...prevState, deviceToken}));
         setFormData(prevState => ({...prevState, userKey}));
-        setFormData(prevState => ({...prevState, username: globalUser?.username }));
-        setFormData(prevState => ({...prevState, name: globalUser?.user_name }));
-        setFormData(prevState => ({...prevState, email: globalUser?.user_email }));
-        setFormData(prevState => ({...prevState, profilePicture: globalUser?.user_photo_url }));
+        setFormData(prevState => ({...prevState, username: globalUser?.username || ''}));
+        setFormData(prevState => ({...prevState, name: globalUser?.user_name || ''}));
+        setFormData(prevState => ({...prevState, email: globalUser?.user_email || ''}));
+        setFormData(prevState => ({...prevState, profilePicture: globalUser?.user_photo_url || null}));
+    }, [phoneNumber, deviceToken, userKey]);
+
+    useEffect(() => {
+        if (!hasUserTyped) return;
+        
         const checkUsername = async () => {
             if (formData.username.length >= 3) {
                 setIsCheckingUsername(true);
-                const isAvailable = await checkUsernameAvailability(formData.username);
+                const isAvailable = await checkUsernameAvailability(formData.username, deviceToken);
                 setIsUsernameAvailable(isAvailable);
                 setIsCheckingUsername(false);
 
@@ -90,15 +95,24 @@ export default function UserDetailsScreen({
                         ...prev,
                         username: 'Username is already taken',
                     }));
+                } else {
+                    setErrors(prev => ({
+                        ...prev,
+                        username: '',
+                    }));
                 }
             } else {
                 setIsUsernameAvailable(null);
+                setErrors(prev => ({
+                    ...prev,
+                    username: '',
+                }));
             }
         };
 
         const debounceTimer = setTimeout(checkUsername, 500);
         return () => clearTimeout(debounceTimer);
-    }, [formData.username]);
+    }, [formData.username, deviceToken, hasUserTyped]);
 
     useEffect(() => {
         // Check age whenever it changes
@@ -256,10 +270,10 @@ export default function UserDetailsScreen({
         if (formData.username.length >= 3) {
             if (isUsernameAvailable) {
                 return (
-                    <Icon name="check-circle-o" size={20} color={theme.colors.success} />
+                    <Icon name="checkmark-circle" size={20} color={theme.colors.success} />
                 );
             }
-            return <Icon name="close" size={20} color={theme.colors.error} />;
+            return <Icon name="close-circle" size={20} color={theme.colors.error} />;
         }
         return null;
     };
@@ -572,9 +586,18 @@ export default function UserDetailsScreen({
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
+            <View style={styles.header}>
+                <TouchableOpacity 
+                    style={styles.backButton} 
+                    onPress={() => navigation.goBack()}
+                >
+                    <Icon name="arrow-back" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
                 <Text style={styles.title}>Enter Your Details</Text>
-
+                <View style={styles.placeholder} />
+            </View>
+            
+            <View style={styles.content}>
                 {isUploading && (
                     <View style={styles.uploadingOverlay}>
                         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -593,7 +616,7 @@ export default function UserDetailsScreen({
                                 />
                             ) : (
                                 <View style={styles.profilePlaceholder}>
-                                    <Icon name="user" size={40} color="#CCCCCC" />
+                                    <Icon name="person" size={40} color="#CCCCCC" />
                                 </View>
                             )}
                             <View style={styles.editIconContainer}>
@@ -615,6 +638,7 @@ export default function UserDetailsScreen({
                             placeholder="Enter username"
                             value={formData.username}
                             onChangeText={text => {
+                                if (!hasUserTyped) setHasUserTyped(true);
                                 setFormData({...formData, username: text});
                                 if (errors.username) {setErrors({...errors, username: ''});}
                             }}
@@ -702,6 +726,26 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.background,
     },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
+    },
+    backButton: {
+        padding: 8,
+    },
+    placeholder: {
+        width: 40, // Same width as back button for balanced layout
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '600',
+        textAlign: 'center',
+        color: theme.colors.text,
+    },
     content: {
         flex: 1,
         padding: 20,
@@ -709,13 +753,6 @@ const styles = StyleSheet.create({
         maxWidth: 400,
         width: '100%',
         alignSelf: 'center',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: '600',
-        marginBottom: 24,
-        textAlign: 'center',
-        color: theme.colors.text,
     },
     inputContainer: {
         marginBottom: 16,
@@ -745,6 +782,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         padding: 12,
         fontSize: 16,
+        color: theme.colors.text,
         backgroundColor: theme.colors.inputBackground,
     },
     inputError: {

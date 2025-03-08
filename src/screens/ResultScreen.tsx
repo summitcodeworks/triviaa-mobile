@@ -4,7 +4,7 @@ import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigation';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import FAIcon from '@react-native-vector-icons/fontawesome5';
 import { useCoins } from './../context/CoinContext.tsx';
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, 'Result'>;

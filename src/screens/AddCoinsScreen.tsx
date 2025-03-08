@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, Alert } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import FAIcon from '@react-native-vector-icons/fontawesome5';
 import type { RootStackScreenProps } from '../types/navigation';
 import { theme } from '../constants/theme';
 import { InterstitialAd, AdEventType, BannerAd, TestIds } from 'react-native-google-mobile-ads';

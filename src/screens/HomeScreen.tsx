@@ -1,4 +1,5 @@
-import React, {useEffect, useState} from 'react';
+/* eslint-disable react-native/no-inline-styles */
+import React, {useEffect, useState, useCallback, useMemo} from 'react';
 import {
     View,
     Text,
@@ -15,8 +16,8 @@ import {ChevronRightIcon} from '../components/ui/icon.tsx';
 import {UserData} from '../models/UserData.ts';
 import {UserStorageService} from '../service/user-storage.service.ts';
 import ApiClient from '../utils/apiClient.ts';
-import Icon from 'react-native-vector-icons/Ionicons';
-import FAIcon from 'react-native-vector-icons/FontAwesome5';
+import Icon from '@react-native-vector-icons/ionicons';
+import FontAwesome5 from '@react-native-vector-icons/fontawesome5';
 import {globalUser, initializeGlobalUser} from "../context/UserContext.tsx";
 import {PointsBalanceResponse} from "../models/PointsBalanceResponse.ts";
 import {AxiosResponse} from "axios";
@@ -25,7 +26,6 @@ import {GameSession, RecentGamesResponse} from "../models/RecentGamesResponse.ts
 import {PopularCategoriesResponse, PopularCategory} from "../models/PopularCategoriesResponse.ts";
 
 export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
-    const userStorage = new UserStorageService();
     const {width: screenWidth} = useWindowDimensions();
     const [popularGames, setPopularGames] = useState<PopularCategory[]>([]);
     const [recentGames, setRecentGames] = useState<GameSession[]>([]);
@@ -34,38 +34,12 @@ export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
     const [loadingCoins, setLoadingCoins] = useState<boolean>(true);
     const [loadingPoints, setLoadingPoints] = useState<boolean>(true);
     const [user, setUser] = useState<UserData | null>(null);
+    const [initializing, setInitializing] = useState<boolean>(true);
+    const [iconsLoaded, setIconsLoaded] = useState(false);
 
-    useEffect(() => {
-        const getUser = async () => {
-            const userData = await userStorage.getUser();
-            setUser(userData);
-            await initializeGlobalUser();
-        };
+    const userStorage = useMemo(() => new UserStorageService(), []);
 
-        getUser();
-    }, []);
-
-    useEffect(() => {
-        if (user) {
-            fetchPopularGames();
-            fetchRecentGames();
-            fetchCoinBalance();
-            fetchPointsBalance();
-        }
-    }, [user]);
-
-    useFocusEffect(
-        React.useCallback(() => {
-            if (user) {
-                fetchPopularGames();
-                fetchRecentGames();
-                fetchCoinBalance();
-                fetchPointsBalance();
-            }
-        }, [user])
-    );
-
-    const fetchPopularGames = async () => {
+    const fetchPopularGames = useCallback(async () => {
         try {
             if (!user) {
                 console.error('User data not available');
@@ -81,15 +55,21 @@ export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
         } catch (error) {
             console.log('Error fetching popular games:', error);
         }
-    };
+    }, [user]);
 
-    const fetchRecentGames = async () => {
+    const fetchRecentGames = useCallback(async () => {
         try {
             if (!user) {
                 console.error('User data not available');
                 return;
             }
-            const RECENT_GAMES_URL = '/api/quiz/recent-games/' + globalUser?.user_id;
+
+            if (!globalUser) {
+                console.error('Global user data not available');
+                return;
+            }
+
+            const RECENT_GAMES_URL = '/api/quiz/recent-games/' + globalUser.user_id;
             const response = await ApiClient.get<RecentGamesResponse>(RECENT_GAMES_URL) as AxiosResponse<RecentGamesResponse>;
             if (response.data.header.responseCode === 200) {
                 setRecentGames(response.data.response);
@@ -100,15 +80,19 @@ export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
         } catch (error) {
             console.log('Error fetching recent games:', error);
         }
-    };
+    }, [user]);
 
-    const fetchCoinBalance = async () => {
+    const fetchCoinBalance = useCallback(async () => {
         try {
             if (!user) {
                 console.error('User data not available');
                 return;
             }
-            const COINS_BALANCES_URL = '/api/coins/balance/' + globalUser?.user_id;
+            if (!globalUser) {
+              console.error('Global user data not available');
+              return;
+            }
+            const COINS_BALANCES_URL = '/api/coins/balance/' + globalUser.user_id;
             const response = await ApiClient.get<CoinsBalanceResponse>(COINS_BALANCES_URL) as AxiosResponse<CoinsBalanceResponse>;
             if (response.data.header.responseCode === 200) {
                 setCoinBalance(response.data.response.coin_balance);
@@ -121,15 +105,19 @@ export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
         } finally {
             setLoadingCoins(false);
         }
-    };
+    }, [user]);
 
-    const fetchPointsBalance = async () => {
+    const fetchPointsBalance = useCallback(async () => {
         try {
             if (!user) {
                 console.error('User data not available');
                 return;
             }
-            const POINTS_BALANCES_URL = '/api/points/balance/' + globalUser?.user_id;
+            if (!globalUser) {
+                console.error('Global user data not available');
+                return;
+            }
+            const POINTS_BALANCES_URL = '/api/points/balance/' + globalUser.user_id;
             const response = await ApiClient.get<PointsBalanceResponse>(POINTS_BALANCES_URL) as AxiosResponse<PointsBalanceResponse>;
             console.log('fetchPointsBalance: ' + response.data.header);
             if (response.data.header.responseCode === 200) {
@@ -143,7 +131,68 @@ export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
         } finally {
             setLoadingPoints(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        const getUser = async () => {
+            try {
+                setInitializing(true);
+                const userData = await userStorage.getUser();
+                setUser(userData);
+                await initializeGlobalUser();
+            } catch (error) {
+                console.error('Error initializing user:', error);
+            } finally {
+                setInitializing(false);
+            }
+        };
+
+        getUser();
+    }, [userStorage]);
+
+    useEffect(() => {
+        if (user) {
+            fetchPopularGames();
+            fetchRecentGames();
+            fetchCoinBalance();
+            fetchPointsBalance();
+        }
+    }, [user, fetchPopularGames, fetchRecentGames, fetchCoinBalance, fetchPointsBalance]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            if (user) {
+                fetchPopularGames();
+                fetchRecentGames();
+                fetchCoinBalance();
+                fetchPointsBalance();
+            }
+        }, [user, fetchPopularGames, fetchRecentGames, fetchCoinBalance, fetchPointsBalance])
+    );
+
+    useEffect(() => {
+        const preloadIcons = async () => {
+            try {
+                await Promise.all([
+                    Icon.getImageSource('help-circle', 30, '#000').catch(() => null),
+                    Icon.getImageSource('star', 30, '#000').catch(() => null),
+                    Icon.getImageSource('trophy', 30, '#000').catch(() => null),
+                    Icon.getImageSource('flame', 30, '#000').catch(() => null)
+                ]);
+
+                setTimeout(() => {
+                    setIconsLoaded(true);
+                }, 500);
+            } catch (error) {
+                console.warn('Failed to preload icons:', error);
+                setTimeout(() => {
+                    setIconsLoaded(true);
+                }, 500);
+            }
+        };
+
+        preloadIcons();
+    }, []);
 
     const getGridDimensions = () => {
         const itemsPerRow = screenWidth > 600 ? 4 : 3;
@@ -161,141 +210,181 @@ export default function HomeScreen({navigation}: TabScreenProps<'Home'>) {
     const iconSize = Math.min(itemWidth * 0.4, 32);
 
     return (
-        <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        {initializing || !iconsLoaded ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        ) : (
+          <>
             <ScrollView style={styles.content}>
-                <View style={styles.header}>
-                    <View style={styles.headerRow}>
-                        <View style={{ flexDirection: 'row' }}>
-                            <Text style={styles.title}>Quiz</Text>
-                            <Icon
-                                name="trophy"
-                                size={24}
-                                color="#FB8C00"
-                                style={{ marginLeft: 12, alignItems: 'center', marginTop: theme.spacing.sm }}
-                            />
-                        </View>
-                        <View style={styles.balanceContainer}>
-                            <View style={styles.balanceIndicator}>
-                                {loadingCoins ? (
-                                    <ActivityIndicator size="small" color={theme.colors.primary} />
-                                ) : (
-                                    <>
-                                        <FAIcon name="coins" size={20} color="#FFD700" style={{ marginRight: 8 }} />
-                                        {/*<CoinsIcon size={20} color="#999" />*/}
-                                        <TouchableOpacity onPress={() => navigation.navigate('Coins')}>
-                                            <Text style={styles.balanceText}>{coinBalance !== null ? coinBalance : 0}</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                )}
-                            </View>
-                            <View style={styles.balanceIndicator}>
-                                {loadingPoints ? (
-                                    <ActivityIndicator size="small" color={theme.colors.primary} />
-                                ) : (
-                                    <>
-                                        <Icon name="star" size={20} color="#4CAF50" style={{ marginRight: 8 }} />
-                                        <TouchableOpacity onPress={() => navigation.navigate('Points')}>
-                                            <Text style={styles.balanceText}>{pointsBalance !== null ? pointsBalance : 0}</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                )}
-                            </View>
-                        </View>
+              <View style={styles.header}>
+                <View style={styles.headerRow}>
+                  <View style={{flexDirection: 'row'}}>
+                    <Text style={styles.title}>Quiz</Text>
+                    <Icon
+                      name="trophy"
+                      size={24}
+                      color="#FB8C00"
+                      style={{
+                        marginLeft: 12,
+                        alignItems: 'center',
+                        marginTop: theme.spacing.sm,
+                      }}
+                    />
+                  </View>
+                  <View style={styles.balanceContainer}>
+                    <View style={styles.balanceIndicator}>
+                      {loadingCoins ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.primary}
+                        />
+                      ) : (
+                        <>
+                          <FontAwesome5
+                            name="coins"
+                            iconStyle="solid"
+                            size={20}
+                            color="#FFD700"
+                            style={{marginRight: 8}}
+                          />
+                          <TouchableOpacity
+                            onPress={() => navigation.navigate('Coins')}>
+                            <Text style={styles.balanceText}>
+                              {coinBalance !== null ? coinBalance : 0}
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
-
-                    <Text style={styles.subtitle}>
-                        Challenge your friends with funny trivia quiz lets see who scores most and rise up to be ultimate quiz
-                        champion
-                    </Text>
+                    <View style={styles.balanceIndicator}>
+                      {loadingPoints ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.primary}
+                        />
+                      ) : (
+                        <>
+                          <Icon
+                            name="star"
+                            size={20}
+                            color="#4CAF50"
+                            style={{marginRight: 8}}
+                          />
+                          <TouchableOpacity
+                            onPress={() => navigation.navigate('Points')}>
+                            <Text style={styles.balanceText}>
+                              {pointsBalance !== null ? pointsBalance : 0}
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
+                  </View>
                 </View>
 
+                <Text style={styles.subtitle}>
+                  Challenge your friends with funny trivia quiz lets see who
+                  scores most and rise up to be ultimate quiz champion
+                </Text>
+              </View>
 
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <Text style={styles.sectionTitle}>Popular Games</Text>
-                            <Icon
-                                name="flame"
-                                size={20}
-                                color="#FF5722"
-                                style={{marginLeft: 12}}
-                            />
-                        </View>
-
-                    </View>
-
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {popularGames.map(game => (
-                            <TouchableOpacity
-                                key={game.category_id}
-                                style={[styles.gameCard, {backgroundColor: game.color}]}
-                                onPress={() =>
-                                    navigation.navigate('Quiz', {categoryId: game.category_name})
-                                }>
-                                <Icon
-                                    name={game.icon}
-                                    size={iconSize}
-                                    color="#FFFFFF"
-                                    style={styles.gameIcon}
-                                />
-                                <Text style={styles.gameTitle}>{game.name}</Text>
-                                <Text style={styles.gameDescription}>{game.description}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <Text style={styles.sectionTitle}>Popular Games</Text>
+                    <Icon
+                      name="flame"
+                      size={20}
+                      color="#FF5722"
+                      style={{marginLeft: 12}}
+                    />
+                  </View>
                 </View>
 
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Recently Played</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('RecentlyPlayed')}>
-                            <Text style={styles.seeAll}>See All</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {recentGames.length > 0 ? (
-                        recentGames.map(game => (
-                            <TouchableOpacity
-                                key={game.session_id}
-                                style={styles.recentCard}
-                                onPress={() =>
-                                    navigation.navigate('Quiz', {categoryId: game.category_name})
-                                }>
-                                <View style={styles.recentInfo}>
-                                    <Icon
-                                        name={game.icon}
-                                        size={iconSize}
-                                        color="#000000"
-                                        style={styles.recentIcon}
-                                    />
-                                    <Text style={styles.recentTitle}>{game.category}</Text>
-                                </View>
-                                <View style={styles.recentScore}>
-                                    <Text style={styles.scoreText}>
-                                        {game.correct_answers} / {game.total_questions}
-                                    </Text>
-                                    {/*<ChevronRightIcon*/}
-                                    {/*    name="chevron-right"*/}
-                                    {/*    size={24}*/}
-                                    {/*    color={theme.colors.textSecondary}*/}
-                                    {/*/>*/}
-                                    <ChevronRightIcon size={20} color="#999" />
-                                </View>
-                            </TouchableOpacity>
-                        ))
-                    ) : (
-                        <Text style={styles.noRecentGames}>No recent games played</Text>
-                    )}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {popularGames.map(game => (
+                    <TouchableOpacity
+                      key={game.category_id}
+                      style={[
+                        styles.gameCard,
+                        {backgroundColor: game.color || '#1a237e'},
+                      ]}
+                      onPress={() =>
+                        navigation.navigate('Quiz', {
+                          categoryId: Number(game.category_name) || 0,
+                        })
+                      }>
+                      <Icon
+                        name={game.icon}
+                        size={iconSize}
+                        color="#FFFFFF"
+                        style={styles.gameIcon}
+                      />
+                      <Text style={styles.gameTitle}>
+                        {game.name || 'Game'}
+                      </Text>
+                      <Text style={styles.gameDescription}>
+                        {game.description || 'Play this game'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recently Played</Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('RecentlyPlayed')}>
+                    <Text style={styles.seeAll}>See All</Text>
+                  </TouchableOpacity>
                 </View>
+                {recentGames.length > 0 ? (
+                  recentGames.map(game => (
+                    <TouchableOpacity
+                      key={game.session_id}
+                      style={styles.recentCard}
+                      >
+                      <View style={styles.recentInfo}>
+                        <Icon
+                          name={game.icon}
+                          size={iconSize}
+                          color="#000000"
+                          style={styles.recentIcon}
+                        />
+                        <Text style={styles.recentTitle}>
+                          {game.category || 'Game'}
+                        </Text>
+                      </View>
+                      <View style={styles.recentScore}>
+                        <Text style={styles.scoreText}>
+                          {game.correct_answers} / {game.total_questions}
+                        </Text>
+                        <ChevronRightIcon size={20} color="#999" />
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.noRecentGames}>
+                    No recent games played
+                  </Text>
+                )}
+              </View>
             </ScrollView>
 
             <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[styles.nextButton]}
-                    onPress={() => navigation.navigate('Category')}>
-                    <Text style={styles.nextButtonText}>Play Game</Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.nextButton]}
+                onPress={() => navigation.navigate('Category')}>
+                <Text style={styles.nextButtonText}>Play Game</Text>
+              </TouchableOpacity>
             </View>
-        </SafeAreaView>
+          </>
+        )}
+      </SafeAreaView>
     );
 }
 
@@ -415,5 +504,16 @@ const styles = StyleSheet.create({
     balanceText: {
         fontSize: 14,
         fontWeight: 'bold',
+        color: theme.colors.primary,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: theme.spacing.md,
+        fontSize: 16,
+        color: theme.colors.primary,
     },
 });

@@ -33,7 +33,7 @@ import NotificationService from './src/service/NotificationService.ts';
 import auth from '@react-native-firebase/auth';
 import firebase from '@react-native-firebase/app';
 import UserDetailsScreen, {StorageUtils} from "./src/screens/UserDetailsScreen.tsx";
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from '@react-native-vector-icons/ionicons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {FAUTH_USER_KEY} from "./globals.tsx";
 import {UserData} from "./src/models/UserData.ts";

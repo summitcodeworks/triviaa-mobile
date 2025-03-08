@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import {ArrowDownLeft, ArrowLeft, ArrowUpRight} from 'lucide-react-native';
 import { RootStackScreenProps } from '../types/navigation.ts';
-import Icon from 'react-native-vector-icons/Ionicons';
-import FAIcon from 'react-native-vector-icons/FontAwesome5';
+import Icon from '@react-native-vector-icons/ionicons';
+import FAIcon from '@react-native-vector-icons/fontawesome5';
 import { theme } from '../constants/theme.ts';
 import {useFocusEffect} from '@react-navigation/native';
 import {UserData} from '../models/UserData.ts';

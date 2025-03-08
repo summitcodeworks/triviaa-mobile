@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from '@react-native-vector-icons/ionicons';
 import { theme } from '../constants/theme';
 import type { RootStackScreenProps } from '../types/navigation';
 import {UserStorageService} from "../service/user-storage.service.ts";

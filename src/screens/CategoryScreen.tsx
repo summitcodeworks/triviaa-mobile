@@ -13,7 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from '@react-native-vector-icons/ionicons';
 import { theme } from '../constants/theme';
 
 type CategoryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Category'>;

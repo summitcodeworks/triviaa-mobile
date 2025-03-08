@@ -132,11 +132,11 @@ export default function SettingsScreen({
                 title="Update Details"
                 onPress={() => navigation.navigate('UserDetails', { phoneNumber: globalUser?.phone_number, deviceToken: globalUser?.device_token, userKey: globalUser?.user_id })}
               />
-              <ListItem
+              {/* <ListItem
                 icon={<ImageIcon />}
                 title="Change Profile Picture"
                 onPress={() => navigation.navigate('ChangeProfilePicture')}
-              />
+              /> */}
               <ListItem
                 icon={<SliderIcon />}
                 title="Threshold Limiter"
