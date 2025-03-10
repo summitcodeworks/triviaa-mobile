@@ -31,15 +31,19 @@ import {
 import type {RootStackScreenProps} from '../types/navigation';
 import auth from '@react-native-firebase/auth';
 import {globalUser} from "../context/UserContext.tsx";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserStorageService } from "../service/user-storage.service.ts";
 
 export default function SettingsScreen({
   navigation,
 }: RootStackScreenProps<'Settings'>) {
+  const userStorage = new UserStorageService();
   const [notifications, setNotifications] = useState(true);
   const [sound, setSound] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [dontWantToEarn, setDontWantToEarn] = useState(false);
-
+  const [user, setUser] = useState(null);
+  
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       {
@@ -52,6 +56,8 @@ export default function SettingsScreen({
         onPress: async () => {
           try {
             await auth().signOut();
+            await AsyncStorage.clear();
+            setUser(null);
             navigation.replace('Welcome');
           } catch (error) {
             Alert.alert(

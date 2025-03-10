@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,28 +12,33 @@ import {
   ToastAndroid,
   Platform,
   Animated,
+  Modal,
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
-import {theme} from '../constants/theme';
-import {useCoins} from '../context/CoinContext';
-import type {TabScreenProps} from '../types/navigation.ts';
+import { theme } from '../constants/theme';
+import { useCoins } from '../context/CoinContext';
+import type { TabScreenProps } from '../types/navigation.ts';
 import ApiClient from '../utils/apiClient.ts';
-import {UserStorageService} from '../service/user-storage.service.ts';
-import {UserData} from '../models/UserData.ts';
-import {globalUser, getGlobalUser} from '../context/UserContext.tsx';
-import {ProfileResponse, ProfileData, CategoryStats} from '../models/ProfileResponse.ts';
-import {AxiosResponse} from 'axios';
+import { UserStorageService } from '../service/user-storage.service.ts';
+import { UserData } from '../models/UserData.ts';
+import { globalUser, getGlobalUser } from '../context/UserContext.tsx';
+import { ProfileResponse, ProfileData, CategoryStats } from '../models/ProfileResponse.ts';
+import { AxiosResponse } from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 
-export default function ProfileScreen({navigation}: TabScreenProps<'Profile'>) {
+export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>) {
   const userStorage = useMemo(() => new UserStorageService(), []);
-  const {coins} = useCoins(); // Keep this for future use
+  const { coins } = useCoins(); // Keep this for future use
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const [showToast, setShowToast] = useState(false);
   const toastOpacity = useState(new Animated.Value(0))[0];
-  const [globalUserReady, setGlobalUserReady] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+  const [showRetryDialog, setShowRetryDialog] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Show toast notification for iOS
   useEffect(() => {
@@ -64,33 +69,68 @@ export default function ProfileScreen({navigation}: TabScreenProps<'Profile'>) {
     }
   }, []);
 
-  const fetchProfileData = useCallback(async () => {
+  const startPolling = useCallback(() => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+    }
+    
+    setIsPolling(true);
+    setShowRetryDialog(true);
+    setRetryCount(0);
+    
+    pollingInterval.current = setInterval(() => {
+      console.log('Polling for profile data...');
+      setRetryCount(prev => prev + 1);
+      fetchProfileData();
+    }, 3000); // Poll every 3 seconds
+  }, [fetchProfileData]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+      pollingInterval.current = null;
+    }
+    setIsPolling(false);
+    setShowRetryDialog(false);
+  }, []);
+
+  const fetchProfileData = useCallback(async (retryCount = 0) => {
     try {
       const currentGlobalUser = getGlobalUser();
-      if (!currentGlobalUser) {
+      if (!currentGlobalUser?.user_id) {
         console.error('Global user data not available');
         setLoading(false);
         return;
       }
       
+      console.log('Fetching profile data for user:', currentGlobalUser.user_id);
       const PROFILE_URL = '/api/users/profile/' + currentGlobalUser.user_id;
       const response = (await ApiClient.get<ProfileResponse>(
         PROFILE_URL,
       )) as AxiosResponse<ProfileResponse>;
       
       if (response.data.header.responseCode === 200) {
+        console.log('Profile data fetched successfully');
         setProfileData(response.data.response);
         if (refreshing) {
           showRefreshToast();
         }
+        stopPolling(); // Stop polling on success
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      
+      // Start polling if not already polling
+      if (!isPolling) {
+        startPolling();
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (retryCount === 0) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [refreshing, showRefreshToast, setLoading, setProfileData, setRefreshing]);
+  }, [refreshing, showRefreshToast, setLoading, setProfileData, setRefreshing, isPolling, startPolling, stopPolling]);
 
   const getUser = useCallback(async () => {
     setLoading(true);
@@ -112,45 +152,55 @@ export default function ProfileScreen({navigation}: TabScreenProps<'Profile'>) {
         const checkInterval = setInterval(() => {
           if (globalUser) {
             clearInterval(checkInterval);
-            setGlobalUserReady(true);
           }
         }, 500);
-        
+
         // Set a timeout to prevent infinite checking
         setTimeout(() => {
           clearInterval(checkInterval);
-          // If still not ready, we'll proceed anyway and handle errors in fetchProfileData
-          setGlobalUserReady(true);
         }, 5000);
       } else {
-        setGlobalUserReady(true);
       }
     };
-    
+
     checkGlobalUser();
   }, []);
 
+  // Add focus effect to reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (globalUser?.user_id) {
+        console.log('Profile screen focused, reloading data...');
+        fetchProfileData();
+      }
+    }, [fetchProfileData])
+  );
+
   // Load user data once globalUser is ready
   useEffect(() => {
-    if (globalUserReady) {
+    console.log('ProfileScreen globalUser changed: ', globalUser?.user_id);
+    if (globalUser?.user_id) {
       getUser();
     }
-  }, [globalUserReady, getUser]);
+  }, [globalUser, getUser]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // If user data is not loaded yet, load it first
-      if (!user) {
-        const userData = await userStorage.getUser();
-        setUser(userData);
-      }
       await fetchProfileData();
     } catch (error) {
       console.error('Error refreshing profile:', error);
+    } finally {
       setRefreshing(false);
     }
-  };
+  }, [fetchProfileData]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   if (loading) {
     return (
@@ -290,7 +340,7 @@ export default function ProfileScreen({navigation}: TabScreenProps<'Profile'>) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl
@@ -306,8 +356,8 @@ export default function ProfileScreen({navigation}: TabScreenProps<'Profile'>) {
             <Image
               source={
                 profileData.user_photo_url
-                  ? {uri: profileData.user_photo_url}
-                  : {uri: 'https://i.pravatar.cc/100'}
+                  ? { uri: profileData.user_photo_url }
+                  : { uri: 'https://i.pravatar.cc/100' }
               }
               style={styles.avatar}
             />
@@ -411,6 +461,33 @@ export default function ProfileScreen({navigation}: TabScreenProps<'Profile'>) {
         {profileData.reports.length > 0 && renderReportsSection()}
       </ScrollView>
 
+      {/* Retry Dialog */}
+      <Modal
+        visible={showRetryDialog}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowRetryDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.modalTitle}>Retrying to load profile...</Text>
+            <Text style={styles.modalText}>
+              Attempt {retryCount + 1}
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                stopPolling();
+                setShowRetryDialog(false);
+              }}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* iOS Toast */}
       {Platform.OS === 'ios' && showToast && (
         <Animated.View style={[styles.iosToast, { opacity: toastOpacity }]}>
@@ -432,7 +509,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -462,7 +539,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
@@ -532,7 +609,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: theme.spacing.sm,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
@@ -585,7 +662,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: theme.spacing.sm,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
@@ -640,5 +717,44 @@ const styles = StyleSheet.create({
   toastText: {
     color: theme.colors.white,
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.white,
+    borderRadius: 12,
+    padding: 24,
+    width: '80%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.primary,
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

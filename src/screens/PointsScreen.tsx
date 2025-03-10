@@ -47,7 +47,7 @@ export default function PointsScreen({ navigation }: RootStackScreenProps<'Point
     const renderTransaction = ({ item }: { item: PointsTransaction }) => (
         <View style={styles.transactionItem}>
             <View style={styles.transactionInfo}>
-                <Icon
+                <FAIcon
                     name={(item.transaction_type === 'participation' || item.transaction_type === 'winner' || item.transaction_type === 'correct_answer') ? 'arrow-up' : 'arrow-down'}
                     size={24}
                     color={(item.transaction_type === 'participation' || item.transaction_type === 'winner' || item.transaction_type === 'correct_answer') ? '#4CAF50' : '#F44336'}
@@ -89,7 +89,7 @@ export default function PointsScreen({ navigation }: RootStackScreenProps<'Point
             <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Current Balance</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <Icon name="star" size={24} color="#4CAF50" style={{ marginRight: 8 }} />
+                    <FAIcon name="star" size={24} color="#4CAF50" style={{ marginRight: 8 }} />
                     <Text style={styles.balanceAmount}>{pointsBalance !== null ? pointsBalance : '0'}</Text>
                 </View>
             </View>

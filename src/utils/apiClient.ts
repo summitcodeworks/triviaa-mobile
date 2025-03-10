@@ -2,8 +2,8 @@ import ApiLogger from './apiLogger';
 
 const TAG = 'apiClient';
 
-// const BASE_URL = 'http://192.168.0.21:3000';
-const BASE_URL = 'https://triviaa-backend.onrender.com';
+// export const BASE_URL = 'http://192.168.0.104:3000';
+export const BASE_URL = 'https://triviaa-backend.onrender.com';
 
 interface ApiResponse<T = any> {
 	data?: T;

@@ -58,7 +58,13 @@ export default function ResultScreen({ route, navigation }: Props) {
                     {percentage.toFixed(1)}%
                 </Text>
                 <View style={styles.coinsContainer}>
-                    <Icon name="coins" size={24} color="#FFD700" />
+                    <FAIcon
+                        name="coins"
+                        iconStyle="solid"
+                        size={20}
+                        color="#FFD700"
+                        style={{ marginRight: 8 }}
+                    />
                     <Text style={styles.coinsText}>
                         {coinsEarned} Coins Earned
                     </Text>

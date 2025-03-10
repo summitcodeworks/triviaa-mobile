@@ -12,6 +12,7 @@ import {
     Platform,
     PermissionsAndroid,
     Linking,
+    Modal,
 } from 'react-native';
 import Icon from '@react-native-vector-icons/ionicons';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
@@ -22,7 +23,7 @@ import {RootStackScreenProps} from '../types/navigation.ts';
 import {DEFAULT_PROFILE_PICTURE, DEVICE_TOKEN, gPhoneNumber} from '../../globals.tsx';
 import {UserStorageService} from "../service/user-storage.service.ts";
 import {UserData} from "../models/UserData.ts";
-import {globalUser} from "../context/UserContext.tsx";
+import {globalUser, setGlobalUser} from "../context/UserContext.tsx";
 
 const ANDROID_API_LEVEL = Platform.Version as number;
 
@@ -69,15 +70,25 @@ export default function UserDetailsScreen({
     const [isUnder13, setIsUnder13] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [hasUserTyped, setHasUserTyped] = useState(false);
+    const [showAgeDialog, setShowAgeDialog] = useState(false);
+    const [tempAge, setTempAge] = useState('');
+    const [isEditMode, setIsEditMode] = useState(false);
 
     useEffect(() => {
         setFormData(prev => ({...prev, phoneNumber}));
         setFormData(prevState => ({...prevState, deviceToken}));
         setFormData(prevState => ({...prevState, userKey}));
-        setFormData(prevState => ({...prevState, username: globalUser?.username || ''}));
-        setFormData(prevState => ({...prevState, name: globalUser?.user_name || ''}));
-        setFormData(prevState => ({...prevState, email: globalUser?.user_email || ''}));
-        setFormData(prevState => ({...prevState, profilePicture: globalUser?.user_photo_url || null}));
+        
+        if (globalUser) {
+            setFormData(prevState => ({...prevState, username: globalUser.username || ''}));
+            setFormData(prevState => ({...prevState, name: globalUser.user_name || ''}));
+            setFormData(prevState => ({...prevState, email: globalUser.user_email || ''}));
+            setFormData(prevState => ({...prevState, profilePicture: globalUser.user_photo_url || null}));
+            setFormData(prevState => ({...prevState, age: globalUser.age || ''}));
+            setIsEditMode(true);
+        }
+        
+        console.log('UserDetailsScreen globalUser: ' + globalUser + ' ' + JSON.stringify(globalUser));
     }, [phoneNumber, deviceToken, userKey]);
 
     useEffect(() => {
@@ -164,7 +175,7 @@ export default function UserDetailsScreen({
             newErrors.username = 'Username cannot contain special characters';
             isValid = false;
             console.log('Username contains special characters');
-        } else if (!isUsernameAvailable) {
+        } else if (!isUsernameAvailable && !isEditMode) {
             newErrors.username = 'Username is already taken';
             isValid = false;
             console.log('Username is already taken');
@@ -176,17 +187,14 @@ export default function UserDetailsScreen({
             console.log('Name is required');
         }
 
-        if (!formData.age.trim()) {
+        if (!isEditMode && !formData.age.trim()) {
             newErrors.age = 'Age is required';
             isValid = false;
             console.log('Age is required');
-        } else {
-            const age = parseInt(formData.age);
-            if (isNaN(age) || age <= 0 || age > 120) {
-                newErrors.age = 'Please enter a valid age';
-                isValid = false;
-                console.log('Invalid age');
-            }
+        } else if (formData.age && (isNaN(parseInt(formData.age)) || parseInt(formData.age) <= 0 || parseInt(formData.age) > 120)) {
+            newErrors.age = 'Please enter a valid age';
+            isValid = false;
+            console.log('Invalid age');
         }
 
         setErrors(newErrors);
@@ -195,14 +203,43 @@ export default function UserDetailsScreen({
     };
 
     const registerUser = async (userData) => {
-        const API_URL = '/api/users/auth/phone';
         try {
-            const response = await ApiClient.post(API_URL, userData);
-            return {
-                success: true,
-                data: response.data,
-                status: response.status
-            };
+            if (isEditMode) {
+                // Update user details using the update endpoint
+                const response = await ApiClient.put(`/api/users/${globalUser.user_id}`, {
+                    name: userData.name,
+                    email: userData.email,
+                    phoneNumber: userData.phoneNumber,
+                    profilePicture: userData.profilePicture,
+                    username: userData.username,
+                    deviceToken: userData.deviceToken,
+                    userKey: userData.userKey
+                });
+                console.log('registerUser response: ' + JSON.stringify(response));
+                return {
+                    success: true,
+                    data: response.data,
+                    status: response.status
+                };
+            } else {
+                // Register new user using the registration endpoint
+                const response = await ApiClient.post('/api/users/auth/phone', {
+                    name: userData.name,
+                    email: userData.email,
+                    phoneNumber: userData.phoneNumber,
+                    profilePicture: userData.profilePicture,
+                    username: userData.username,
+                    deviceToken: userData.deviceToken,
+                    userKey: userData.userKey,
+                    age: userData.age // Include age for registration
+                });
+                console.log('registerUser response: ' + JSON.stringify(response));
+                return {
+                    success: true,
+                    data: response.data,
+                    status: response.status
+                };
+            }
         } catch (error) {
             return {
                 success: false,
@@ -212,25 +249,65 @@ export default function UserDetailsScreen({
         }
     };
 
+    const handleAgeSubmit = () => {
+        const age = parseInt(tempAge);
+        if (isNaN(age) || age <= 0 || age > 120) {
+            setErrors(prev => ({...prev, age: 'Please enter a valid age'}));
+            return;
+        }
+        
+        if (age < 13) {
+            Alert.alert(
+                'Age Restriction',
+                'You must be 13 or older to register.',
+                [{ text: 'OK' }]
+            );
+            setShowAgeDialog(false);
+            setTempAge('');
+            return;
+        }
+
+        setFormData(prev => ({...prev, age: tempAge}));
+        setShowAgeDialog(false);
+        setTempAge('');
+        
+        // Proceed with registration after age is set
+        if (validateForm()) {
+            handleSubmit();
+        }
+    };
+
     const handleSubmit = async () => {
+        if (!isEditMode) {
+            setShowAgeDialog(true);
+            return;
+        }
+
         if (validateForm()) {
             try {
                 setIsLoading(true);
 
+                // Clean up phone number - remove any spaces, dashes, or other formatting
+                const cleanPhoneNumber = formData.phoneNumber.replace(/[\s-()]/g, '');
+
                 const userData = {
                     ...formData,
+                    phoneNumber: cleanPhoneNumber,
                     profilePicture: formData.profilePicture || DEFAULT_PROFILE_PICTURE
                 };
 
                 const result = await registerUser(userData);
                 setIsLoading(false);
-
+                console.log('registerUser result: ' + JSON.stringify(result));
                 if (result.success) {
-                    const userDataStorage = await userStorage.saveUser(new UserData(result?.data.response));
+                    const userDataStorage = await userStorage.saveUser(new UserData(result.data.response));
+                    console.log('userDataStorage: ' + JSON.stringify(userDataStorage));
                     if (userDataStorage) {
+                        // Update global user context
+                        setGlobalUser(result.data.response);
                         Alert.alert(
                             'Success',
-                            'Registration successful!',
+                            isEditMode ? 'Profile updated successfully!' : 'Registration successful!',
                             [
                                 {
                                     text: 'OK',
@@ -244,13 +321,15 @@ export default function UserDetailsScreen({
                     } else {
                         Alert.alert(
                             'Warning',
-                            'Registration successful but failed to save data locally. Some features might not work properly.',
+                            isEditMode 
+                                ? 'Changes saved but failed to update local data. Some features might not work properly.'
+                                : 'Registration successful but failed to save data locally. Some features might not work properly.',
                         );
                     }
                 } else {
                     Alert.alert(
                         'Error',
-                        result.error?.header?.responseMessage || 'Registration failed. Please try again.',
+                        result.error?.header?.responseMessage || (isEditMode ? 'Failed to update profile.' : 'Registration failed. Please try again.'),
                     );
                 }
             } catch (error) {
@@ -593,7 +672,7 @@ export default function UserDetailsScreen({
                 >
                     <Icon name="arrow-back" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Enter Your Details</Text>
+                <Text style={styles.title}>{isEditMode ? 'Edit Profile' : 'Enter Your Details'}</Text>
                 <View style={styles.placeholder} />
             </View>
             
@@ -667,31 +746,20 @@ export default function UserDetailsScreen({
                     ) : null}
                 </View>
 
-                <View style={styles.inputContainer}>
+                {/* <View style={styles.inputContainer}>
                     <Text style={styles.label}>Age *</Text>
-                    <TextInput
+                    <TouchableOpacity 
                         style={[styles.input, errors.age ? styles.inputError : null]}
-                        placeholder="Enter age"
-                        value={formData.age}
-                        onChangeText={text => {
-                            setFormData({...formData, age: text});
-                            if (errors.age) {setErrors({...errors, age: ''});}
-                        }}
-                        keyboardType="numeric"
-                        maxLength={3}
-                    />
+                        onPress={() => setShowAgeDialog(true)}
+                    >
+                        <Text style={formData.age ? styles.inputText : styles.placeholderText}>
+                            {formData.age ? formData.age : 'Enter age'}
+                        </Text>
+                    </TouchableOpacity>
                     {errors.age ? (
                         <Text style={styles.errorText}>{errors.age}</Text>
                     ) : null}
-                    {isUnder13 && (
-                        <View style={styles.warningContainer}>
-                            <Icon name="warning" size={16} color={theme.colors.warning} />
-                            <Text style={styles.warningText}>
-                                Users under 13 require parental consent
-                            </Text>
-                        </View>
-                    )}
-                </View>
+                </View> */}
 
                 <View style={styles.inputContainer}>
                     <Text style={styles.label}>Email</Text>
@@ -710,13 +778,52 @@ export default function UserDetailsScreen({
                         styles.button,
                         !isUsernameAvailable &&
                         formData.username.length >= 3 &&
+                        !isEditMode &&
                         styles.buttonDisabled,
                     ]}
                     onPress={handleSubmit}
-                    disabled={!isUsernameAvailable && formData.username.length >= 3}>
-                    <Text style={styles.buttonText}>Save Details</Text>
+                    disabled={!isUsernameAvailable && formData.username.length >= 3 && !isEditMode}>
+                    <Text style={styles.buttonText}>{isEditMode ? 'Save Changes' : 'Save Details'}</Text>
                 </TouchableOpacity>
             </View>
+
+            <Modal
+                visible={showAgeDialog}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowAgeDialog(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Enter Your Age</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Enter age"
+                            value={tempAge}
+                            onChangeText={setTempAge}
+                            keyboardType="numeric"
+                            maxLength={3}
+                        />
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.modalCancelButton]}
+                                onPress={() => {
+                                    setShowAgeDialog(false);
+                                    setTempAge('');
+                                }}
+                            >
+                                <Text style={styles.modalButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.modalSubmitButton]}
+                                onPress={handleAgeSubmit}
+                            >
+                                <Text style={[styles.modalButtonText, styles.modalSubmitButtonText]}>Submit</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -743,7 +850,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: '600',
-        textAlign: 'center',
+        textAlign: 'left',
         color: theme.colors.text,
     },
     content: {
@@ -870,5 +977,65 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 20,
+        width: '80%',
+        maxWidth: 400,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 16,
+        textAlign: 'center',
+        color: theme.colors.text,
+    },
+    modalInput: {
+        borderWidth: 1,
+        borderColor: '#E1E1E1',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        marginBottom: 16,
+        color: theme.colors.text,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    modalButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    modalCancelButton: {
+        backgroundColor: '#F5F5F5',
+    },
+    modalSubmitButton: {
+        backgroundColor: theme.colors.primary,
+    },
+    modalButtonText: {
+        fontSize: 16,
+        color: theme.colors.text,
+    },
+    modalSubmitButtonText: {
+        color: '#FFFFFF',
+    },
+    inputText: {
+        color: theme.colors.text,
+    },
+    placeholderText: {
+        color: '#999999',
     },
 });

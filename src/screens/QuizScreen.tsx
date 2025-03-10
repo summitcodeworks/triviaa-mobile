@@ -13,11 +13,11 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { useCoins } from '../context/CoinContext';
 import { Modal, TextInput } from 'react-native';
-import ApiClient from '../utils/apiClient.ts';
 import CircularTimer from '../components/CircularTimer.tsx';
 import {UserStorageService} from "../service/user-storage.service.ts";
 import {UserData} from "../models/UserData.ts";
 import {globalUser, UserProvider} from "../context/UserContext.tsx";
+import ApiClient, { BASE_URL } from '../utils/apiClient';
 
 type QuizScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Quiz'>;
 
@@ -79,7 +79,7 @@ export default function QuizScreen({ route }: any) {
     }, [timeLeft, timerActive]);
 
     useEffect(() => {
-        const startQuizUrl = 'http://192.168.0.21:3000/api/quiz/start';
+        const startQuizUrl = BASE_URL + '/api/quiz/start';
         const requestBody = {
             user_id: globalUser?.user_id,
             category_name: categoryId,
@@ -109,7 +109,7 @@ export default function QuizScreen({ route }: any) {
                 Alert.alert('Error', 'Failed to start quiz session');
             });
 
-        const apiUrl = `http://192.168.0.21:3000/api/questions/category/${categoryId}`;
+        const apiUrl = BASE_URL + `/api/questions/category/${categoryId}`;
         console.log('apiUrl:', apiUrl);
         fetch(apiUrl)
             .then((response) => response.json())
@@ -128,7 +128,7 @@ export default function QuizScreen({ route }: any) {
 
     const handleTimeUp = async () => {
         if (sessionId) {
-            const answerUrl = '/api/quiz/answer';
+            const answerUrl = BASE_URL + '/api/quiz/answer';
             const requestBody = {
                 session_id: sessionId,
                 question_id: questions[currentQuestion].id,
@@ -169,7 +169,7 @@ export default function QuizScreen({ route }: any) {
     const handleNextQuestion = () => {
         setTimerActive(false);
         if (selectedAnswer !== null && sessionId) {
-            const answerUrl = 'http://192.168.0.21:3000/api/quiz/answer';
+            const answerUrl = BASE_URL + '/api/quiz/answer';
             const requestBody = {
                 session_id: sessionId,
                 question_id: questions[currentQuestion].id,
@@ -215,7 +215,7 @@ export default function QuizScreen({ route }: any) {
 
     const handleFinishQuiz = () => {
         if (sessionId) {
-            const endQuizUrl = 'http://192.168.0.21:3000/api/quiz/end';
+            const endQuizUrl = BASE_URL + '/api/quiz/end';
             const requestBody = {
                 session_id: sessionId,
             };
@@ -281,7 +281,7 @@ export default function QuizScreen({ route }: any) {
 
     const fetchReports = async () => {
         try {
-            const response = await fetch('http://192.168.0.21:3000/api/reports/list');
+            const response = await fetch(BASE_URL + '/api/reports/list');
             const data = await response.json();
             if (data.header.responseCode === 200) {
                 setReports(data.response);
@@ -361,7 +361,7 @@ export default function QuizScreen({ route }: any) {
         };
 
         try {
-            const response = await fetch('http://192.168.0.21:3000/api/reports/submit', {
+            const response = await fetch(BASE_URL + '/api/reports/submit', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

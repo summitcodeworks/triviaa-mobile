@@ -15,11 +15,14 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import Icon from '@react-native-vector-icons/ionicons';
 import { theme } from '../constants/theme';
+import ApiClient from '../utils/apiClient';
+import { Category, CategoryResponse } from '../models/CategoryResponse';
+import {AxiosResponse} from "axios";
 
 type CategoryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Category'>;
 
 export default function CategoryScreen() {
-    const [categories, setCategories] = useState([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,13 +32,13 @@ export default function CategoryScreen() {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch('http://192.168.0.21:3000/api/categories/');
-                const data = await response.json();
+                const CATEGORIES_URL = '/api/categories/';
+                const response = await ApiClient.get<CategoryResponse>(CATEGORIES_URL) as AxiosResponse<CategoryResponse>;
 
-                if (data.header.responseCode === 200) {
-                    setCategories(data.response.filter((category: any) => category.use_flag)); // Only use active categories
+                if (response.data.header.responseCode === 200) {
+                    setCategories(response.data.response.filter((category: Category) => category.use_flag)); // Only use active categories
                 } else {
-                    setError(data.header.responseMessage || 'Failed to fetch categories.');
+                    setError(response.data.header.responseMessage || 'Failed to fetch categories.');
                 }
             } catch (err) {
                 if (err instanceof Error) {

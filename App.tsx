@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -32,12 +32,14 @@ import HelpSupportScreen from './src/screens/HelpSupportScreen.tsx';
 import NotificationService from './src/service/NotificationService.ts';
 import auth from '@react-native-firebase/auth';
 import firebase from '@react-native-firebase/app';
-import UserDetailsScreen, {StorageUtils} from "./src/screens/UserDetailsScreen.tsx";
+import UserDetailsScreen, { StorageUtils } from "./src/screens/UserDetailsScreen.tsx";
 import Icon from '@react-native-vector-icons/ionicons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {FAUTH_USER_KEY} from "./globals.tsx";
-import {UserData} from "./src/models/UserData.ts";
-import {UserStorageService} from "./src/service/user-storage.service.ts";
+import { FAUTH_USER_KEY } from "./globals.tsx";
+import { UserData } from "./src/models/UserData.ts";
+import { UserStorageService } from "./src/service/user-storage.service.ts";
+import { initializeGlobalUser } from './src/context/UserContext.tsx';
+import ApiClient from './src/utils/apiClient.ts';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -66,6 +68,7 @@ function TabNavigator() {
         });
 
         const setupNotifications = async () => {
+            await initializeGlobalUser();
             const isSetup = await NotificationService.init();
             if (isSetup) {
                 const unsubscribeForeground = NotificationService.onForegroundMessage();
@@ -136,13 +139,35 @@ export default function App() {
     const [user, setUser] = useState(null);
 
     // Handle user state changes
-    function onAuthStateChanged(user) {
-        setUser(user);
-        if (initializing) setInitializing(false);
+    async function onAuthStateChanged(user: any) {
+        try {
+            if (user) {
+                // Check if user exists in our API
+                try {
+                    const response = await ApiClient.get(`/api/users/${user.uid}`);
+                    if (response.data?.header?.responseCode !== 200) {
+                        // User not found in our API, sign out from Firebase
+                        await auth().signOut();
+                        setUser(null);
+                        return;
+                    }
+                    // User exists in both Firebase and our API
+                    setUser(user);
+                } catch (error) {
+                    console.error('Error checking user in API:', error);
+                    // API error or user not found, sign out from Firebase
+                    await auth().signOut();
+                    setUser(null);
+                }
+            } else {
+                setUser(null);
+            }
+        } finally {
+            if (initializing) setInitializing(false);
+        }
     }
 
     useEffect(() => {
-        // Subscribe to auth state changes
         const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
         return subscriber; // unsubscribe on unmount
     }, []);
@@ -162,27 +187,29 @@ export default function App() {
                     }}
                     initialRouteName={user ? 'MainTabs' : 'Welcome'}
                 >
+                    {/* Common screens accessible in both states */}
+                    <Stack.Screen name="UserDetails" component={UserDetailsScreen} />
+
                     {
                         user ? (
                             <>
-                            <Stack.Screen name="MainTabs" component={TabNavigator} />
-                            <Stack.Screen name="Category" component={CategoryScreen} />
-                            <Stack.Screen name="Quiz" component={QuizScreen} />
-                            <Stack.Screen name="Result" component={ResultScreen} />
-                            <Stack.Screen name="Coins" component={CoinScreen}/>
-                            <Stack.Screen name="AddCoins" component={AddCoinsScreen}/>
-                            <Stack.Screen name="RecentlyPlayed" component={RecentlyPlayedScreen}/>
-                            <Stack.Screen name="Points" component={PointsScreen}/>
-                            <Stack.Screen name="Settings" component={SettingsScreen}/>
-                            <Stack.Screen name="DontWantToEarn" component={DontWantToEarnScreen}/>
-                            <Stack.Screen name="ThresholdLimiter" component={ThresholdLimiterScreen}/>
-                            <Stack.Screen name="ChangeUsername" component={ChangeUsernameScreen} />
-                            <Stack.Screen name="ChangeProfilePicture" component={ChangeProfilePictureScreen} />
-                            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
-                            <Stack.Screen name="Reports" component={ReportsScreen} />
-                            <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
-                            <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-                            <Stack.Screen name="UserDetails" component={UserDetailsScreen} />
+                                <Stack.Screen name="MainTabs" component={TabNavigator} />
+                                <Stack.Screen name="Category" component={CategoryScreen} />
+                                <Stack.Screen name="Quiz" component={QuizScreen} />
+                                <Stack.Screen name="Result" component={ResultScreen} />
+                                <Stack.Screen name="Coins" component={CoinScreen} />
+                                <Stack.Screen name="AddCoins" component={AddCoinsScreen} />
+                                <Stack.Screen name="RecentlyPlayed" component={RecentlyPlayedScreen} />
+                                <Stack.Screen name="Points" component={PointsScreen} />
+                                <Stack.Screen name="Settings" component={SettingsScreen} />
+                                <Stack.Screen name="DontWantToEarn" component={DontWantToEarnScreen} />
+                                <Stack.Screen name="ThresholdLimiter" component={ThresholdLimiterScreen} />
+                                <Stack.Screen name="ChangeUsername" component={ChangeUsernameScreen} />
+                                <Stack.Screen name="ChangeProfilePicture" component={ChangeProfilePictureScreen} />
+                                <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+                                <Stack.Screen name="Reports" component={ReportsScreen} />
+                                <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
+                                <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
                             </>
                         ) : (
                             <>
@@ -193,28 +220,6 @@ export default function App() {
                             </>
                         )
                     }
-                    {/*<Stack.Screen name="Welcome" component={WelcomeScreen} />*/}
-                    {/*<Stack.Screen name="Login" component={LoginScreen} />*/}
-                    {/*<Stack.Screen name="SignUp" component={SignUpScreen} />*/}
-                    {/*<Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />*/}
-                    {/*<Stack.Screen name="MainTabs" component={TabNavigator} />*/}
-                    {/*<Stack.Screen name="Category" component={CategoryScreen} />*/}
-                    {/*<Stack.Screen name="Quiz" component={QuizScreen} />*/}
-                    {/*<Stack.Screen name="Result" component={ResultScreen} />*/}
-                    {/*<Stack.Screen name="Coins" component={CoinScreen}/>*/}
-                    {/*<Stack.Screen name="AddCoins" component={AddCoinsScreen}/>*/}
-                    {/*<Stack.Screen name="RecentlyPlayed" component={RecentlyPlayedScreen}/>*/}
-                    {/*<Stack.Screen name="Points" component={PointsScreen}/>*/}
-                    {/*<Stack.Screen name="Settings" component={SettingsScreen}/>*/}
-                    {/*<Stack.Screen name="DontWantToEarn" component={DontWantToEarnScreen}/>*/}
-                    {/*<Stack.Screen name="ThresholdLimiter" component={ThresholdLimiterScreen}/>*/}
-                    {/*<Stack.Screen name="ChangeUsername" component={ChangeUsernameScreen} />*/}
-                    {/*<Stack.Screen name="ChangeProfilePicture" component={ChangeProfilePictureScreen} />*/}
-                    {/*<Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />*/}
-                    {/*<Stack.Screen name="Reports" component={ReportsScreen} />*/}
-                    {/*<Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />*/}
-                    {/*<Stack.Screen name="HelpSupport" component={HelpSupportScreen} />*/}
-                    {/*<Stack.Screen name="UserDetails" component={UserDetailsScreen} />*/}
                 </Stack.Navigator>
             </NavigationContainer>
         </CoinProvider>

@@ -67,7 +67,7 @@ export default function LoginScreen({
   const userStorage = new UserStorageService();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState<CountryCode>('IN');
-  const [callingCode, setCallingCode] = useState('1');
+  const [callingCode, setCallingCode] = useState('91');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [verificationId, setVerificationId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -125,10 +125,10 @@ export default function LoginScreen({
     try {
       setLoading(true);
       const deviceToken = await AsyncStorage.getItem(DEVICE_TOKEN_KEY);
-      const formattedNumber = `+${callingCode}${phoneNumber}`;
+      const formattedNumber = `+${callingCode}${phoneNumber.replace(/[\s-()]/g, '')}`;
 
       const requestBody: RegisterUserRequest = {
-        phoneNumber: user.phoneNumber || formattedNumber,
+        phoneNumber: user.phoneNumber?.replace(/[\s-()]/g, '') || formattedNumber,
       };
 
       console.log('User login details: ' + JSON.stringify(user));
@@ -144,7 +144,7 @@ export default function LoginScreen({
           userStorage.saveUser(userData);
         } else {
           navigation.replace('UserDetails', {
-            phoneNumber: user.phoneNumber || formattedNumber,
+            phoneNumber: user.phoneNumber?.replace(/[\s-()]/g, '') || formattedNumber,
             deviceToken: deviceToken,
             userKey: user.user.uid,
           });

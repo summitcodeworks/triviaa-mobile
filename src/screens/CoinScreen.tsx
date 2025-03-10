@@ -9,19 +9,18 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
-import {ArrowDownLeft, ArrowLeft, ArrowUpRight} from 'lucide-react-native';
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight } from 'lucide-react-native';
 import { RootStackScreenProps } from '../types/navigation.ts';
-import Icon from '@react-native-vector-icons/ionicons';
 import FAIcon from '@react-native-vector-icons/fontawesome5';
 import { theme } from '../constants/theme.ts';
-import {useFocusEffect} from '@react-navigation/native';
-import {UserData} from '../models/UserData.ts';
-import {UserStorageService} from '../service/user-storage.service.ts';
+import { useFocusEffect } from '@react-navigation/native';
+import { UserData } from '../models/UserData.ts';
+import { UserStorageService } from '../service/user-storage.service.ts';
 import ApiClient from '../utils/apiClient.ts';
-import {globalUser} from "../context/UserContext.tsx";
-import {CoinsTransactionResponse} from "../models/CoinsTransactionResponse.ts";
-import {AxiosResponse} from "axios";
-import {CoinsBalanceResponse} from "../models/CoinsBalanceResponse.ts";
+import { globalUser } from "../context/UserContext.tsx";
+import { CoinsTransactionResponse } from "../models/CoinsTransactionResponse.ts";
+import { AxiosResponse } from "axios";
+import { CoinsBalanceResponse } from "../models/CoinsBalanceResponse.ts";
 
 export default function CoinScreen({ navigation }: RootStackScreenProps<'Coins'>) {
     const userStorage = new UserStorageService();
@@ -128,7 +127,13 @@ export default function CoinScreen({ navigation }: RootStackScreenProps<'Coins'>
             <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Current Balance</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <FAIcon name="coins" size={24} color="#FFD700" style={{marginRight: 8}}/>
+                    <FAIcon
+                        name="coins"
+                        iconStyle="solid"
+                        size={20}
+                        color="#FFD700"
+                        style={{ marginRight: 8 }}
+                    />
                     <Text style={styles.balanceAmount}>{balance !== null ? balance.toFixed(0) : '0.00'}</Text>
                 </View>
                 {/*<Text style={styles.balanceAmount}>{balance !== null ? balance.toFixed(2) : "0.00"} coins</Text>*/}
@@ -138,7 +143,7 @@ export default function CoinScreen({ navigation }: RootStackScreenProps<'Coins'>
                 <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Currently in development')}>
                     <Text style={styles.actionButtonText}>Encash Coins</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton} onPress={() =>navigation.navigate('AddCoins')}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('AddCoins')}>
                     <Text style={styles.actionButtonText}>Add Coins</Text>
                 </TouchableOpacity>
             </View>
