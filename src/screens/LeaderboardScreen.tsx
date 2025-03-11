@@ -8,7 +8,6 @@ import {
     SafeAreaView,
     ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { theme } from '../constants/theme';
 import ApiClient from "../utils/apiClient.ts";
@@ -35,31 +34,28 @@ export default function LeaderboardScreen() {
     const [otherPlayers, setOtherPlayers] = useState<Player[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchLeaderboard = async () => {
-        try {
-            const LEADERBOARD_URL = '/api/points/leaderboard?threshold=500&limit=5';
-            const response = await ApiClient.get<LeaderboardResponse>(LEADERBOARD_URL);
-            const leaderboardData = response.data.response;
-            if (response.data.header.responseCode === 200) {
-                const sortedPlayers = leaderboardData.sort((a: Player, b: Player) => a.rank - b.rank);
-                setTopPlayers(sortedPlayers.slice(0, 3));
-                setOtherPlayers(sortedPlayers.slice(3));
-            } else {
-                console.error('Failed to fetch leaderboard:', response.data.header.responseMessage);
+    useEffect(() => {
+        const fetchLeaderboard = async () => {
+            try {
+                const LEADERBOARD_URL = '/api/points/leaderboard?threshold=500&limit=5';
+                const response = await ApiClient.get<LeaderboardResponse>(LEADERBOARD_URL);
+                const leaderboardData = response.data.response;
+                if (response.data.header.responseCode === 200) {
+                    const sortedPlayers = leaderboardData.sort((a: Player, b: Player) => a.rank - b.rank);
+                    setTopPlayers(sortedPlayers.slice(0, 3));
+                    setOtherPlayers(sortedPlayers.slice(3));
+                } else {
+                    console.error('Failed to fetch leaderboard:', response.data.header.responseMessage);
+                }
+            } catch (error) {
+                console.error('Error fetching leaderboard:', error);
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error('Error fetching leaderboard:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+        };
 
-    useFocusEffect(
-        React.useCallback(() => {
-            setIsLoading(true);
-            fetchLeaderboard();
-        }, [])
-    );
+        fetchLeaderboard();
+    }, []);
 
     if (isLoading) {
         return (

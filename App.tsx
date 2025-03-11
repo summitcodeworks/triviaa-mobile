@@ -255,6 +255,7 @@ export default function App() {
                                 <Stack.Screen name="SignUp" component={SignUpScreen} />
                                 <Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />
                                 <Stack.Screen name="MainTabs" component={TabNavigator} />
+                                <Stack.Screen name="Settings" component={SettingsScreen} />
                             </>
                         )
                     }

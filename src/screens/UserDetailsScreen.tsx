@@ -64,7 +64,7 @@ export default function UserDetailsScreen({
         name: '',
         email: '',
         age: 13,
-        profilePicture: 'https://firebasestorage.googleapis.com/v0/b/triviaa-14824.firebasestorage.app/o/profile_pictures%2F1739677298388_rn_image_picker_lib_temp_577061f6-a2ef-4b70-ba5e-6392a126ece2.jpg?alt=media&token=a18bba62-619f-47de-adfe-5a4ea6e20bab',
+        profilePicture: DEFAULT_PROFILE_PICTURE,
     });
     const [errors, setErrors] = useState({
         username: '',
@@ -352,8 +352,42 @@ export default function UserDetailsScreen({
             const result = await registerUser(userData);
             console.log('handleSubmit result: ' + JSON.stringify(result));
             if (result.success && result.data) {
-                setGlobalUser(result.data);
-                navigation.navigate('MainTabs');
+                // Create a new UserData instance with the API response
+                const userDataInstance = new UserData();
+                userDataInstance.fromJSON({
+                    user_id: result.data.user_id,
+                    user_key: result.data.user_key,
+                    user_name: result.data.user_name,
+                    user_email: result.data.user_email,
+                    user_credits: result.data.user_credits,
+                    user_creation_date: result.data.user_creation_date,
+                    use_flag: result.data.use_flag,
+                    user_photo_url: result.data.user_photo_url,
+                    device_token: result.data.device_token,
+                    phone_number: result.data.phone_number,
+                    username: result.data.username
+                });
+
+                // Update global user and storage with the proper UserData instance
+                await setGlobalUser(userDataInstance);
+                await userStorage.saveUser(userDataInstance);
+                
+                // Add a small delay to ensure state updates are processed
+                setTimeout(() => {
+                    // Reset to Welcome screen first
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Welcome' }],
+                    });
+                    
+                    // Then after a brief delay, reset to MainTabs
+                    setTimeout(() => {
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'MainTabs' }],
+                        });
+                    }, 100);
+                }, 100);
             } else {
                 Alert.alert('Error', result.error || 'Failed to register user');
             }
