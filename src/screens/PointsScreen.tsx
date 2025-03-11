@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
-import FAIcon from '@react-native-vector-icons/fontawesome5';
 import { theme } from '../constants/theme';
 import type { RootStackScreenProps } from '../types/navigation';
-import {globalUser} from '../context/UserContext.tsx';
+import { globalUser } from '../context/UserContext.tsx';
 import ApiClient from '../utils/apiClient.ts';
-import {AxiosResponse} from 'axios';
-import {PointsBalanceResponse} from '../models/PointsBalanceResponse.ts';
-import {PointsTransaction, PointsTransactionResponse} from '../models/PointsTransactionResponse.ts';
-
+import { AxiosResponse } from 'axios';
+import { PointsBalanceResponse } from '../models/PointsBalanceResponse.ts';
+import { PointsTransaction, PointsTransactionResponse } from '../models/PointsTransactionResponse.ts';
+import Icon from '@react-native-vector-icons/ionicons';
+import FAIcon from '@react-native-vector-icons/fontawesome5';
 
 export default function PointsScreen({ navigation }: RootStackScreenProps<'Points'>) {
     const [pointsBalance, setPointsBalance] = useState(0);
@@ -48,6 +48,7 @@ export default function PointsScreen({ navigation }: RootStackScreenProps<'Point
         <View style={styles.transactionItem}>
             <View style={styles.transactionInfo}>
                 <FAIcon
+                    iconStyle="solid"
                     name={(item.transaction_type === 'participation' || item.transaction_type === 'winner' || item.transaction_type === 'correct_answer') ? 'arrow-up' : 'arrow-down'}
                     size={24}
                     color={(item.transaction_type === 'participation' || item.transaction_type === 'winner' || item.transaction_type === 'correct_answer') ? '#4CAF50' : '#F44336'}
@@ -89,7 +90,12 @@ export default function PointsScreen({ navigation }: RootStackScreenProps<'Point
             <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Current Balance</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <FAIcon name="star" size={24} color="#4CAF50" style={{ marginRight: 8 }} />
+                    <Icon
+                        name="star"
+                        size={20}
+                        color="#4CAF50"
+                        style={{ marginRight: 8 }}
+                    />
                     <Text style={styles.balanceAmount}>{pointsBalance !== null ? pointsBalance : '0'}</Text>
                 </View>
             </View>

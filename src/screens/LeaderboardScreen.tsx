@@ -8,9 +8,11 @@ import {
     SafeAreaView,
     ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { theme } from '../constants/theme';
 import ApiClient from "../utils/apiClient.ts";
+import { DEFAULT_PROFILE_PICTURE } from '../context/UserContext.tsx';
 
 type Player = {
     user_id: string;
@@ -20,33 +22,44 @@ type Player = {
     rank: number;
 };
 
+type LeaderboardResponse = {
+    header: {
+        responseCode: number;
+        responseMessage: string;
+    };
+    response: Player[];
+};
+
 export default function LeaderboardScreen() {
     const [topPlayers, setTopPlayers] = useState<Player[]>([]);
     const [otherPlayers, setOtherPlayers] = useState<Player[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchLeaderboard = async () => {
-            try {
-                const LEADERBOARD_URL = '/api/points/leaderboard?threshold=500&limit=5';
-                const response = await ApiClient.get(LEADERBOARD_URL);
-                const leaderboardData = response.data.response;
-                if (response.data.header.responseCode === 200) {
-                    const sortedPlayers = leaderboardData.sort((a: Player, b: Player) => a.rank - b.rank);
-                    setTopPlayers(sortedPlayers.slice(0, 3));
-                    setOtherPlayers(sortedPlayers.slice(3));
-                } else {
-                    console.error('Failed to fetch leaderboard:', response.data.header.responseMessage);
-                }
-            } catch (error) {
-                console.error('Error fetching leaderboard:', error);
-            } finally {
-                setIsLoading(false);
+    const fetchLeaderboard = async () => {
+        try {
+            const LEADERBOARD_URL = '/api/points/leaderboard?threshold=500&limit=5';
+            const response = await ApiClient.get<LeaderboardResponse>(LEADERBOARD_URL);
+            const leaderboardData = response.data.response;
+            if (response.data.header.responseCode === 200) {
+                const sortedPlayers = leaderboardData.sort((a: Player, b: Player) => a.rank - b.rank);
+                setTopPlayers(sortedPlayers.slice(0, 3));
+                setOtherPlayers(sortedPlayers.slice(3));
+            } else {
+                console.error('Failed to fetch leaderboard:', response.data.header.responseMessage);
             }
-        };
+        } catch (error) {
+            console.error('Error fetching leaderboard:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        fetchLeaderboard();
-    }, []);
+    useFocusEffect(
+        React.useCallback(() => {
+            setIsLoading(true);
+            fetchLeaderboard();
+        }, [])
+    );
 
     if (isLoading) {
         return (
@@ -77,7 +90,7 @@ export default function LeaderboardScreen() {
                     >
                         <Image
                             source={{
-                                uri: player.user_photo_url || 'https://i.pravatar.cc/100',
+                                uri: player.user_photo_url || DEFAULT_PROFILE_PICTURE
                             }}
                             style={styles.topPlayerAvatar}
                         />
@@ -97,7 +110,7 @@ export default function LeaderboardScreen() {
                             <Text style={styles.playerPosition}>#{player.rank}</Text>
                             <Image
                                 source={{
-                                    uri: player.user_photo_url || 'https://i.pravatar.cc/100',
+                                    uri: player.user_photo_url || DEFAULT_PROFILE_PICTURE,
                                 }}
                                 style={styles.playerAvatar}
                             />

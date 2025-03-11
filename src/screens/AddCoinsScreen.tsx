@@ -6,7 +6,8 @@ import type { RootStackScreenProps } from '../types/navigation';
 import { theme } from '../constants/theme';
 import { InterstitialAd, AdEventType, BannerAd, TestIds } from 'react-native-google-mobile-ads';
 import RazorpayCheckout from 'react-native-razorpay';
-
+import Icon from '@react-native-vector-icons/ionicons';
+import { BASE_URL } from '../utils/apiClient';
 interface CoinPackage {
     id: string
     coins: number
@@ -16,8 +17,8 @@ interface CoinPackage {
 const exchangeRate = 86.254712;
 
 const coinPackages: CoinPackage[] = [
-    { id: '1', coins: 100, price: (0.99 * exchangeRate).toFixed(0) },
-    { id: '2', coins: 500, price: (4.99 * exchangeRate).toFixed(0) },
+    { id: '1', coins: 100, price: (0.01 * exchangeRate).toFixed(0) },
+    { id: '2', coins: 500, price: (0.01 * exchangeRate).toFixed(0) },
     { id: '3', coins: 1000, price: (9.99 * exchangeRate).toFixed(0) },
     { id: '4', coins: 5000, price: (49.99 * exchangeRate).toFixed(0) },
 ].map(pkg => ({ ...pkg, price: Number(pkg.price) })); // Ensure prices are numbers
@@ -56,7 +57,7 @@ export default function AddCoinsScreen({ navigation }: RootStackScreenProps<'Add
                 comment: 'By watching an ad',
             };
 
-            const handlePurchaseUrl = 'http://192.168.0.21:3000/api/coins/credit';
+            const handlePurchaseUrl = BASE_URL + '/api/coins/credit';
             console.log('handlePurchaseUrl:', handlePurchaseUrl);
             console.log('Request body:', requestBody);
 
@@ -117,7 +118,7 @@ export default function AddCoinsScreen({ navigation }: RootStackScreenProps<'Add
                         comment: 'By purchasing a coin package',
                     };
 
-                    const handlePurchaseUrl = 'http://192.168.0.21:3000/api/coins/credit';
+                    const handlePurchaseUrl = BASE_URL + '/api/coins/credit';
                     const res = await fetch(handlePurchaseUrl, {
                         method: 'POST',
                         headers: {

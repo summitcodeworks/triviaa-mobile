@@ -24,6 +24,9 @@ import {DEFAULT_PROFILE_PICTURE, DEVICE_TOKEN, gPhoneNumber} from '../../globals
 import {UserStorageService} from "../service/user-storage.service.ts";
 import {UserData} from "../models/UserData.ts";
 import {globalUser, setGlobalUser} from "../context/UserContext.tsx";
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../types/navigation';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 const ANDROID_API_LEVEL = Platform.Version as number;
 
@@ -39,11 +42,18 @@ const theme = {
     },
 };
 
+type UserDetailScreenRouteProp = RouteProp<RootStackParamList, 'UserDetails'>;
+type UserDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'UserDetails'>;
+
+type Props = {
+    route: UserDetailScreenRouteProp;
+    navigation: UserDetailScreenNavigationProp;
+};
+
 export default function UserDetailsScreen({
                                               route,
                                               navigation,
-                                          }: RootStackScreenProps<'UserDetails'>) {
-    const {phoneNumber, deviceToken, userKey} = route.params;
+                                          }: Props) {
     const userStorage = new UserStorageService();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -53,10 +63,8 @@ export default function UserDetailsScreen({
         username: '',
         name: '',
         email: '',
-        age: '',
-        profilePicture: null as
-            | unknown
-            | 'https://firebasestorage.googleapis.com/v0/b/triviaa-14824.firebasestorage.app/o/profile_pictures%2F1739677298388_rn_image_picker_lib_temp_577061f6-a2ef-4b70-ba5e-6392a126ece2.jpg?alt=media&token=a18bba62-619f-47de-adfe-5a4ea6e20bab',
+        age: 13,
+        profilePicture: 'https://firebasestorage.googleapis.com/v0/b/triviaa-14824.firebasestorage.app/o/profile_pictures%2F1739677298388_rn_image_picker_lib_temp_577061f6-a2ef-4b70-ba5e-6392a126ece2.jpg?alt=media&token=a18bba62-619f-47de-adfe-5a4ea6e20bab',
     });
     const [errors, setErrors] = useState({
         username: '',
@@ -75,21 +83,41 @@ export default function UserDetailsScreen({
     const [isEditMode, setIsEditMode] = useState(false);
 
     useEffect(() => {
+        // Check if route.params exists and has required parameters
+        if (!route.params) {
+            console.error('UserDetailsScreen: Missing route params');
+            navigation.goBack();
+            return;
+        }
+
+        const { phoneNumber, deviceToken, userKey } = route.params;
+        
+        if (!phoneNumber || !deviceToken || !userKey) {
+            console.error('UserDetailsScreen: Missing required parameters');
+            navigation.goBack();
+            return;
+        }
+
         setFormData(prev => ({...prev, phoneNumber}));
         setFormData(prevState => ({...prevState, deviceToken}));
         setFormData(prevState => ({...prevState, userKey}));
         
-        if (globalUser) {
-            setFormData(prevState => ({...prevState, username: globalUser.username || ''}));
-            setFormData(prevState => ({...prevState, name: globalUser.user_name || ''}));
-            setFormData(prevState => ({...prevState, email: globalUser.user_email || ''}));
-            setFormData(prevState => ({...prevState, profilePicture: globalUser.user_photo_url || null}));
-            setFormData(prevState => ({...prevState, age: globalUser.age || ''}));
+        if (globalUser && typeof globalUser === 'object' && 'username' in globalUser) {
+            const user = globalUser as {
+                username?: string;
+                user_name?: string;
+                user_email?: string;
+                user_photo_url?: string;
+            };
+            setFormData(prevState => ({...prevState, username: user.username || ''}));
+            setFormData(prevState => ({...prevState, name: user.user_name || ''}));
+            setFormData(prevState => ({...prevState, email: user.user_email || ''}));
+            setFormData(prevState => ({...prevState, profilePicture: user.user_photo_url || DEFAULT_PROFILE_PICTURE}));
             setIsEditMode(true);
         }
         
         console.log('UserDetailsScreen globalUser: ' + globalUser + ' ' + JSON.stringify(globalUser));
-    }, [phoneNumber, deviceToken, userKey]);
+    }, [route.params, navigation]);
 
     useEffect(() => {
         if (!hasUserTyped) return;
@@ -97,7 +125,7 @@ export default function UserDetailsScreen({
         const checkUsername = async () => {
             if (formData.username.length >= 3) {
                 setIsCheckingUsername(true);
-                const isAvailable = await checkUsernameAvailability(formData.username, deviceToken);
+                const isAvailable = await checkUsernameAvailability(formData.username, formData.deviceToken);
                 setIsUsernameAvailable(isAvailable);
                 setIsCheckingUsername(false);
 
@@ -123,7 +151,7 @@ export default function UserDetailsScreen({
 
         const debounceTimer = setTimeout(checkUsername, 500);
         return () => clearTimeout(debounceTimer);
-    }, [formData.username, deviceToken, hasUserTyped]);
+    }, [formData.username, formData.deviceToken, hasUserTyped]);
 
     useEffect(() => {
         // Check age whenever it changes
@@ -187,11 +215,13 @@ export default function UserDetailsScreen({
             console.log('Name is required');
         }
 
-        if (!isEditMode && !formData.age.trim()) {
-            newErrors.age = 'Age is required';
-            isValid = false;
-            console.log('Age is required');
-        } else if (formData.age && (isNaN(parseInt(formData.age)) || parseInt(formData.age) <= 0 || parseInt(formData.age) > 120)) {
+        // if (!isEditMode && !formData.age.trim()) {
+        //     newErrors.age = 'Age is required';
+        //     isValid = false;
+        //     console.log('Age is required');
+        // } else 
+        
+        if (formData.age && (isNaN(parseInt(formData.age)) || parseInt(formData.age) <= 0 || parseInt(formData.age) > 120)) {
             newErrors.age = 'Please enter a valid age';
             isValid = false;
             console.log('Invalid age');
@@ -202,11 +232,21 @@ export default function UserDetailsScreen({
         return isValid;
     };
 
-    const registerUser = async (userData) => {
+    const registerUser = async (userData: {
+        name: string;
+        email: string;
+        phoneNumber: string;
+        profilePicture: string | null;
+        username: string;
+        deviceToken: string;
+        userKey: string;
+        age?: string;
+    }) => {
         try {
+            console.log('registerUser isEditMode: ' + isEditMode);
             if (isEditMode) {
                 // Update user details using the update endpoint
-                const response = await ApiClient.put(`/api/users/${globalUser.user_id}`, {
+                const response = await ApiClient.put(`/api/users/${globalUser?.user_id}`, {
                     name: userData.name,
                     email: userData.email,
                     phoneNumber: userData.phoneNumber,
@@ -216,9 +256,16 @@ export default function UserDetailsScreen({
                     userKey: userData.userKey
                 });
                 console.log('registerUser response: ' + JSON.stringify(response));
+                const responseData = response.data as { 
+                    data: { 
+                        header: { responseCode: number; responseMessage: string };
+                        response: any
+                    };
+                    status: number;
+                };
                 return {
                     success: true,
-                    data: response.data,
+                    data: responseData.response,
                     status: response.status
                 };
             } else {
@@ -234,17 +281,26 @@ export default function UserDetailsScreen({
                     age: userData.age // Include age for registration
                 });
                 console.log('registerUser response: ' + JSON.stringify(response));
+                const responseData = response.data as { 
+                    data: { 
+                        header: { responseCode: number; responseMessage: string };
+                        response: any
+                    };
+                    status: number;
+                };
+                console.log('registerUser responseData: ' + JSON.stringify(responseData));
                 return {
                     success: true,
-                    data: response.data,
+                    data: responseData.response,
                     status: response.status
                 };
             }
-        } catch (error) {
+        } catch (error: unknown) {
+            const apiError = error as { response?: { data?: any; status?: number } };
             return {
                 success: false,
-                error: error.response?.data || 'An error occurred',
-                status: error.response?.status
+                error: apiError.response?.data || 'An error occurred',
+                status: apiError.response?.status
             };
         }
     };
@@ -278,67 +334,33 @@ export default function UserDetailsScreen({
     };
 
     const handleSubmit = async () => {
-        if (!isEditMode) {
-            setShowAgeDialog(true);
-            return;
-        }
+        if (!validateForm()) return;
 
-        if (validateForm()) {
-            try {
-                setIsLoading(true);
+        setIsLoading(true);
+        try {
+            const userData = {
+                name: formData.name,
+                email: formData.email,
+                phoneNumber: formData.phoneNumber,
+                profilePicture: typeof formData.profilePicture === 'string' ? formData.profilePicture : null,
+                username: formData.username,
+                deviceToken: formData.deviceToken,
+                userKey: formData.userKey,
+                age: formData.age
+            };
 
-                // Clean up phone number - remove any spaces, dashes, or other formatting
-                const cleanPhoneNumber = formData.phoneNumber.replace(/[\s-()]/g, '');
-
-                const userData = {
-                    ...formData,
-                    phoneNumber: cleanPhoneNumber,
-                    profilePicture: formData.profilePicture || DEFAULT_PROFILE_PICTURE
-                };
-
-                const result = await registerUser(userData);
-                setIsLoading(false);
-                console.log('registerUser result: ' + JSON.stringify(result));
-                if (result.success) {
-                    const userDataStorage = await userStorage.saveUser(new UserData(result.data.response));
-                    console.log('userDataStorage: ' + JSON.stringify(userDataStorage));
-                    if (userDataStorage) {
-                        // Update global user context
-                        setGlobalUser(result.data.response);
-                        Alert.alert(
-                            'Success',
-                            isEditMode ? 'Profile updated successfully!' : 'Registration successful!',
-                            [
-                                {
-                                    text: 'OK',
-                                    onPress: () => {
-                                        console.log('storageSuccess: ' + JSON.stringify(userDataStorage));
-                                        navigation.navigate('MainTabs');
-                                    }
-                                }
-                            ]
-                        );
-                    } else {
-                        Alert.alert(
-                            'Warning',
-                            isEditMode 
-                                ? 'Changes saved but failed to update local data. Some features might not work properly.'
-                                : 'Registration successful but failed to save data locally. Some features might not work properly.',
-                        );
-                    }
-                } else {
-                    Alert.alert(
-                        'Error',
-                        result.error?.header?.responseMessage || (isEditMode ? 'Failed to update profile.' : 'Registration failed. Please try again.'),
-                    );
-                }
-            } catch (error) {
-                setIsLoading(false);
-                Alert.alert(
-                    'Error',
-                    'An unexpected error occurred. Please try again.'
-                );
+            const result = await registerUser(userData);
+            console.log('handleSubmit result: ' + JSON.stringify(result));
+            if (result.success && result.data) {
+                setGlobalUser(result.data);
+                navigation.navigate('MainTabs');
+            } else {
+                Alert.alert('Error', result.error || 'Failed to register user');
             }
+        } catch (error: any) {
+            Alert.alert('Error', 'An unexpected error occurred ' + error.message);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -644,25 +666,6 @@ export default function UserDetailsScreen({
         }
     };
 
-    //     // Optional: Function to delete old profile picture
-    //     const deleteOldProfilePicture = async (url: string) => {
-    //         try {
-    //             // Extract the path from the URL
-    //             const urlPath = storage().refFromURL(url);
-    //             await urlPath.delete();
-    //         } catch (error) {
-    //             console.error('Error deleting old profile picture:', error);
-    //             // Don't throw error as this is not critical
-    //         }
-    //     };
-    //
-    // // Optional: Function to get image thumbnail URL
-    //     const getThumbnailUrl = (originalUrl: string, size: number = 200): string => {
-    //         // Firebase Storage allows you to add query parameters for transformed images
-    //         // Format might vary based on your Firebase configuration
-    //         return `${originalUrl}?width=${size}&height=${size}&alt=media`;
-    //     };
-
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -914,7 +917,7 @@ const styles = StyleSheet.create({
         marginLeft: 8,
     },
     button: {
-        backgroundColor: theme.colors.primary,
+        backgroundColor: theme.colors.text,
         borderRadius: 10,
         padding: 16,
         alignItems: 'center',

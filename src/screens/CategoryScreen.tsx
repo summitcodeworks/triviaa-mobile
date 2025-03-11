@@ -36,7 +36,7 @@ export default function CategoryScreen() {
                 const response = await ApiClient.get<CategoryResponse>(CATEGORIES_URL) as AxiosResponse<CategoryResponse>;
 
                 if (response.data.header.responseCode === 200) {
-                    setCategories(response.data.response.filter((category: Category) => category.use_flag)); // Only use active categories
+                    setCategories(response.data.response.filter((category: Category) => category.use_flag && category.is_subcategory === false)); // Only use active categories
                 } else {
                     setError(response.data.header.responseMessage || 'Failed to fetch categories.');
                 }

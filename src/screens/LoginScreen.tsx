@@ -95,8 +95,9 @@ export default function LoginScreen({
         Alert.alert('Error', 'Failed to get verification ID');
       }
     } catch (err) {
-      console.error(err);
+      console.log(err);
       Alert.alert('Error', err.message || 'Failed to send verification code');
+      await auth().signOut();
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ export default function LoginScreen({
       console.log('User signed in:', user);
       await checkPhoneExists(user);
     } catch (error: any) {
-      console.error(error);
+      console.log(error);
       Alert.alert('Error', error.message || 'Invalid verification code');
     } finally {
       setLoading(false);
@@ -131,81 +132,39 @@ export default function LoginScreen({
         phoneNumber: user.phoneNumber?.replace(/[\s-()]/g, '') || formattedNumber,
       };
 
-      console.log('User login details: ' + JSON.stringify(user));
+      console.log('Checking phone number:', requestBody.phoneNumber);
 
       const response = await ApiClient.post<ApiResponse>(
         '/api/users/check-phone',
         requestBody,
       );
 
-      if (response.data && response.data.header.responseCode === 200) {
-        if (response.data.response.exists) {
-          const userData = new UserData(response.data.response);
-          userStorage.saveUser(userData);
-        } else {
-          navigation.replace('UserDetails', {
-            phoneNumber: user.phoneNumber?.replace(/[\s-()]/g, '') || formattedNumber,
-            deviceToken: deviceToken,
-            userKey: user.user.uid,
-          });
-        }
-      } else if (response.data.header.responseCode === 200) {
-        throw new Error(
-          response.data.header.responseMessage || 'Registration failed',
-        );
-      }
-    } catch (error) {
-      console.error(error);
+      console.log('Check Phone API Response:', JSON.stringify(response.data));
+
+      if (response.data?.header?.responseCode === 200) {
+        
+      } 
+
+      if (response.data?.response.exists) {
+        const userData = new UserData(response.data.response);
+        await userStorage.saveUser(userData);
+        navigation.replace('MainTabs');
+      } else {
+        navigation.replace('UserDetails', {
+          phoneNumber: user.phoneNumber?.replace(/[\s-()]/g, '') || formattedNumber,
+          deviceToken: deviceToken || '',
+          userKey: user.user.uid,
+        });
+      } 
+    } catch (error: any) {
+      console.error('Error in checkPhoneExists:', error);
       const errorMessage =
         error.response?.data?.header?.responseMessage ||
         error.message ||
-        'Failed to register user';
+        'Failed to check phone number';
       Alert.alert('Error', errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const registerOrLoginUser = async (user: any) => {
-    try {
-      setLoading(true);
-      const deviceToken = await AsyncStorage.getItem(DEVICE_TOKEN_KEY);
-      const formattedNumber = `+${callingCode}${phoneNumber}`;
-
-      const requestBody: RegisterUserRequest = {
-        userName: userName || user.displayName || '',
-        email: email || user.email || '',
-        password: password,
-        photoUrl: photoUrl || user.photoURL || '',
-        phoneNumber: user.phoneNumber || formattedNumber,
-      };
-
-      const response = await ApiClient.post<ApiResponse>(
-        '/api/users/auth/phone',
-        requestBody,
-      );
-
-      if (response.data.header.responseCode === 201) {
-        console.log('User registered successfully');
-        await AsyncStorage.setItem('user_id', response.data.response.user_id);
-        await AsyncStorage.setItem(
-          'user_name',
-          response.data.response.user_name,
-        );
-      } else if (response.data.header.responseCode === 200) {
-        throw new Error(
-          response.data.header.responseMessage || 'Registration failed',
-        );
-      }
-    } catch (error) {
-      console.error(error);
-      const errorMessage =
-        error.response?.data?.header?.responseMessage ||
-        error.message ||
-        'Failed to register user';
-      Alert.alert('Error', errorMessage);
-      throw error;
+      console.log('Signing out due to error: ' + errorMessage);
+      await auth().signOut();
     } finally {
       setLoading(false);
     }

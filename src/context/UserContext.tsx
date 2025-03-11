@@ -1,9 +1,11 @@
 // src/globalUser.ts
-import { UserData } from '../models/UserData'; // Adjust path
-import { UserStorageService } from '../service/user-storage.service'; // Adjust path
+import { UserData } from '../models/UserData'; 
+import { UserStorageService } from '../service/user-storage.service'; 
 
 // Global variable to hold user data
 export let globalUser: UserData | null = null;
+
+export const DEFAULT_PROFILE_PICTURE = 'https://firebasestorage.googleapis.com/v0/b/triviaa-14824.firebasestorage.app/o/profile_pictures%2Fdefault_profile_picture.jpg?alt=media&token=fc17ac5f-64f1-46e5-a4e0-7f84097cb573';
 
 // Function to initialize the global user (called once at app start)
 export const initializeGlobalUser = async (): Promise<void> => {

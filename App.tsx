@@ -32,7 +32,7 @@ import HelpSupportScreen from './src/screens/HelpSupportScreen.tsx';
 import NotificationService from './src/service/NotificationService.ts';
 import auth from '@react-native-firebase/auth';
 import firebase from '@react-native-firebase/app';
-import UserDetailsScreen, { StorageUtils } from "./src/screens/UserDetailsScreen.tsx";
+import UserDetailsScreen from "./src/screens/UserDetailsScreen.tsx";
 import Icon from '@react-native-vector-icons/ionicons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FAUTH_USER_KEY } from "./globals.tsx";
@@ -134,6 +134,30 @@ function TabNavigator() {
     );
 }
 
+interface ApiHeader {
+    responseCode: number;
+    responseMessage: string;
+}
+
+interface UserResponse {
+    user_id: string;
+    user_key: string | null;
+    user_name: string;
+    user_email: string | null;
+    user_credits: number | null;
+    user_creation_date: string;
+    use_flag: boolean;
+    user_photo_url: string;
+    device_token: string | null;
+    phone_number: string;
+    password: string | null;
+}
+
+interface ApiResponse {
+    header: ApiHeader;
+    response: UserResponse;
+}
+
 export default function App() {
     const [initializing, setInitializing] = useState(true);
     const [user, setUser] = useState(null);
@@ -141,21 +165,34 @@ export default function App() {
     // Handle user state changes
     async function onAuthStateChanged(user: any) {
         try {
+        
             if (user) {
+                console.log('User:', user.phoneNumber + ' ' + user.uid);
                 // Check if user exists in our API
                 try {
-                    const response = await ApiClient.get(`/api/users/${user.uid}`);
-                    if (response.data?.header?.responseCode !== 200) {
-                        // User not found in our API, sign out from Firebase
+                    console.log('Checking user login status:', user.uid);
+                    
+                    if (user.phoneNumber) {
+                        const loginResponse = await ApiClient.post<ApiResponse>('/api/users/auth/phone', {
+                            phoneNumber: user.phoneNumber,
+                            userKey: user.uid
+                        });
+                        console.log('Login API Response:', JSON.stringify(loginResponse.data));
+                        
+                        if (loginResponse.data?.header?.responseCode === 200) {
+                            setUser(user);
+                        } else {
+                            console.log('User not properly logged in, signing out');
+                            await auth().signOut();
+                            setUser(null);
+                        }
+                    } else {
+                        console.log('User phone number not found');
                         await auth().signOut();
                         setUser(null);
-                        return;
                     }
-                    // User exists in both Firebase and our API
-                    setUser(user);
-                } catch (error) {
-                    console.error('Error checking user in API:', error);
-                    // API error or user not found, sign out from Firebase
+                } catch (error: any) {
+                    console.log('Error checking login status:', error);
                     await auth().signOut();
                     setUser(null);
                 }
@@ -217,6 +254,7 @@ export default function App() {
                                 <Stack.Screen name="Login" component={LoginScreen} />
                                 <Stack.Screen name="SignUp" component={SignUpScreen} />
                                 <Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />
+                                <Stack.Screen name="MainTabs" component={TabNavigator} />
                             </>
                         )
                     }

@@ -21,7 +21,7 @@ import type { TabScreenProps } from '../types/navigation.ts';
 import ApiClient from '../utils/apiClient.ts';
 import { UserStorageService } from '../service/user-storage.service.ts';
 import { UserData } from '../models/UserData.ts';
-import { globalUser, getGlobalUser } from '../context/UserContext.tsx';
+import { globalUser, getGlobalUser, DEFAULT_PROFILE_PICTURE } from '../context/UserContext.tsx';
 import { ProfileResponse, ProfileData, CategoryStats } from '../models/ProfileResponse.ts';
 import { AxiosResponse } from 'axios';
 import { useFocusEffect } from '@react-navigation/native';
@@ -355,9 +355,7 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
           <View style={styles.profileInfo}>
             <Image
               source={
-                profileData.user_photo_url
-                  ? { uri: profileData.user_photo_url }
-                  : { uri: 'https://i.pravatar.cc/100' }
+                { uri: profileData.user_photo_url || DEFAULT_PROFILE_PICTURE }
               }
               style={styles.avatar}
             />
